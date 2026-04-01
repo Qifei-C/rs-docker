@@ -1,0 +1,20 @@
+services:
+  realsense:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: realsense-ros2:humble
+    container_name: realsense
+    privileged: true
+    stdin_open: true
+    tty: true
+    volumes:
+      # 录制数据持久化到宿主机
+      - ./data:/ros2_ws/data
+      # 自定义 launch 和脚本
+      - ./launch:/ros2_ws/launch
+      - ./scripts:/ros2_ws/scripts
+    environment:
+      - ROS_DOMAIN_ID=0
+    # Mac Docker Desktop 不支持 network_mode: host
+    # ROS2 通信使用默认 bridge 网络即可（单容器场景）
