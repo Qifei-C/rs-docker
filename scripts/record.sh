@@ -1,32 +1,39 @@
-#!/bin/bash
-# 录制所有 RealSense 话题到 rosbag
-# 用法: ./record.sh [可选的文件名前缀]
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+# ===== Config =====
+BAG_NAME="${1:-D455_Stereo_IMU_$(date +%Y%m%d_%H%M%S)}"
+OUT_DIR="${2:-/ros2_ws/data}"
+DURATION_SEC="${3:-}"
+
+# ===== Env =====
+set +u
 source /opt/ros/humble/setup.bash
 source /ros2_ws/install/setup.bash
+set -u
 
-PREFIX="${1:-recording}"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BAG_DIR="/ros2_ws/data/${PREFIX}_${TIMESTAMP}"
+mkdir -p "$OUT_DIR"
+cd "$OUT_DIR"
 
-echo "=== 开始录制到 ${BAG_DIR} ==="
-echo "按 Ctrl+C 停止录制"
+echo "[INFO] Output: $OUT_DIR/$BAG_NAME"
+echo "[INFO] Storage: mcap (Optimized for Foxglove/Calibration)"
 
-ros2 bag record -o "${BAG_DIR}" \
-    /camera/color/image_raw \
-    /camera/color/camera_info \
-    /camera/depth/image_rect_raw \
-    /camera/depth/camera_info \
-    /camera/infra1/image_rect_raw \
-    /camera/infra2/image_rect_raw \
-    /camera/aligned_depth_to_color/image_raw \
-    /camera/aligned_depth_to_color/camera_info \
-    /camera/imu \
-    /camera/gyro/imu_info \
-    /camera/accel/imu_info \
-    /tf \
-    /tf_static \
-    --storage mcap
+TOPICS=(
+    /camera/d455_camera/infra1/image_rect_raw
+    /camera/d455_camera/infra1/camera_info
+    /camera/d455_camera/infra2/image_rect_raw
+    /camera/d455_camera/infra2/camera_info
+    /camera/d455_camera/imu
+    /tf_static
+)
 
-echo "=== 录制完成: ${BAG_DIR} ==="
+if [[ -n "$DURATION_SEC" ]]; then
+    echo "[INFO] Recording for ${DURATION_SEC}s..."
+    timeout "${DURATION_SEC}" ros2 bag record --storage mcap -o "$BAG_NAME" "${TOPICS[@]}" || true
+    echo "[INFO] Done (timeout reached)."
+else
+    echo "[INFO] Recording... press Ctrl+C to stop."
+    ros2 bag record --storage mcap -o "$BAG_NAME" "${TOPICS[@]}"
+fi
+
+echo "[INFO] Bag saved at: $OUT_DIR/$BAG_NAME"
